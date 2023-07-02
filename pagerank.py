@@ -57,7 +57,25 @@ def transition_model(corpus, page, damping_factor):
     linked to by `page`. With probability `1 - damping_factor`, choose
     a link at random chosen from all pages in the corpus.
     """
-    raise NotImplementedError
+    distribution = {}
+    pages = corpus.keys()
+
+    linked_pages = corpus[page]
+    if not linked_pages:
+        for page in pages:
+            distribution[page] = 1/(len(corpus))
+        return distribution
+
+    for page in pages:
+
+        p = ((1 - damping_factor)/len(corpus))
+
+        if page in linked_pages:
+            p += damping_factor/len(linked_pages)
+
+        distribution[page] = p
+
+    return distribution
 
 
 def sample_pagerank(corpus, damping_factor, n):
@@ -69,7 +87,28 @@ def sample_pagerank(corpus, damping_factor, n):
     their estimated PageRank value (a value between 0 and 1). All
     PageRank values should sum to 1.
     """
-    raise NotImplementedError
+
+    ranks = {}
+    pages = list(corpus.keys())
+    states = []
+    
+    for _ in range(n):
+        if not states:
+            next_state = random.choice(pages)
+            states.append(next_state)
+            continue
+        
+        state = states[-1]
+        distribution = transition_model(corpus, state, damping_factor)
+        pages, probabilities = list(zip(*distribution.items()))
+
+        [next_state] = random.choices(pages, weights=probabilities, k=1)
+        states.append(next_state)
+
+    for page in pages:
+        ranks[page] = states.count(page)/len(states)
+
+    return ranks
 
 
 def iterate_pagerank(corpus, damping_factor):
@@ -81,8 +120,25 @@ def iterate_pagerank(corpus, damping_factor):
     their estimated PageRank value (a value between 0 and 1). All
     PageRank values should sum to 1.
     """
-    raise NotImplementedError
+    
+    pages = set(corpus.keys())
+    ranks = { page: 1/len(corpus) for page in pages }
+    ranking = True
 
+    N = len(pages)
+    while ranking:
+        new_ranks = {}
+        for p in pages:
+            num_links = lambda i: (len(corpus[i]) or len(pages))
+            linked_from = [i for i in pages if p in corpus[i] or not corpus[i]]
+
+            pr = (1-damping_factor)/N + damping_factor*sum([ranks[i]/num_links(i) for i in linked_from])
+            new_ranks[p] = pr
+
+        ranking = any([abs(rank - new_ranks[page]) > 0.001 for page, rank in ranks.items()])
+        ranks = new_ranks
+
+    return ranks
 
 if __name__ == "__main__":
     main()
